@@ -40,19 +40,24 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth -> auth
 
-                        // Registration and login are public
+                        // Public endpoints
                         .requestMatchers(
-                                "/api/users",
-                                "/api/auth/login"
+                                "/api/auth/login",
+                                "/api/users"
                         ).permitAll()
 
                         // Health check
                         .requestMatchers("/actuator/health").permitAll()
 
-                        // Everything else requires authentication
+                        // ADMIN only
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+
+                        // USER or ADMIN
+                        .requestMatchers("/api/user/**").hasAnyRole("USER", "ADMIN")
+
+                        // Everything else requires login
                         .anyRequest().authenticated()
                 )
-
                 // JWT filter runs before Spring's username/password filter
                 .addFilterBefore(
                         jwtAuthenticationFilter,
