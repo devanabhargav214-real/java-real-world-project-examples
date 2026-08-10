@@ -5,6 +5,7 @@ eureka server-> http://localhost:8761
 
 
  User Service End points
+ POST http://localhost:8081/api/users
  
 | Method | Endpoint                   | Purpose           |
 | ------ | -------------------------- | ----------------- |
@@ -16,4 +17,3 @@ eureka server-> http://localhost:8761
 
 AuthController
 POST http://localhost:8081/api/auth/login
-POST http://localhost:8081/api/users
