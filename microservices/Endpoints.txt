@@ -13,3 +13,7 @@ eureka server-> http://localhost:8761
 | GET    | `/api/users/{id}`          | Get user by ID    |
 | GET    | `/api/users/email/{email}` | Get user by email |
 | DELETE | `/api/users/{id}`          | Delete user       |
+
+AuthController
+POST http://localhost:8081/api/auth/login
+POST http://localhost:8081/api/users

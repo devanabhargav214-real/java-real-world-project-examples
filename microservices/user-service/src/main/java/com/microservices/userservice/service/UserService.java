@@ -2,18 +2,23 @@ package com.microservices.userservice.service;
 
 import com.microservices.userservice.entity.User;
 import com.microservices.userservice.repository.UserRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class UserService {
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public UserService(UserRepository userRepository) {
+    public UserService(
+            UserRepository userRepository,
+            PasswordEncoder passwordEncoder) {
+
         this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public User createUser(User user) {
@@ -21,6 +26,8 @@ public class UserService {
         if (userRepository.existsByEmail(user.getEmail())) {
             throw new RuntimeException("Email already registered");
         }
+
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
 
         if (user.getRole() == null || user.getRole().isBlank()) {
             user.setRole("USER");
@@ -35,30 +42,25 @@ public class UserService {
 
     public User getUserById(Long id) {
 
-        Optional<User> user = userRepository.findById(id);
-
-        if (user.isEmpty()) {
-            throw new RuntimeException("User not found with id: " + id);
-        }
-
-        return user.get();
+        return userRepository.findById(id)
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "User not found with id: " + id));
     }
 
     public User getUserByEmail(String email) {
 
-        Optional<User> user = userRepository.findByEmail(email);
-
-        if (user.isEmpty()) {
-            throw new RuntimeException("User not found with email: " + email);
-        }
-
-        return user.get();
+        return userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "User not found with email: " + email));
     }
 
     public void deleteUser(Long id) {
 
         if (!userRepository.existsById(id)) {
-            throw new RuntimeException("User not found with id: " + id);
+            throw new RuntimeException(
+                    "User not found with id: " + id);
         }
 
         userRepository.deleteById(id);

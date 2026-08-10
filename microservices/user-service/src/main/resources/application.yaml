@@ -35,3 +35,7 @@
       web:
         exposure:
           include: health,info
+
+
+  jwt:
+      secret: MyVeryStrongSecretKeyForJwtAuthentication123456789
