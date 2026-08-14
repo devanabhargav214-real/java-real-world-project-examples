@@ -8,11 +8,11 @@ pipeline {
 
     stages {
         // ----------------------------------------------------
-        // Stage 1: Build All Microservices (Maven)
+        // Stage 1: Build All Microservices
         // ----------------------------------------------------
-        stage('Build Microservices') {
+        stage('Build with Maven') {
             steps {
-                echo 'Compiling and packaging Eureka Server and User Service...'
+                echo 'Compiling and packaging all microservices...'
                 dir('microservices') {
                     bat 'mvn clean package -DskipTests'
                 }
@@ -22,19 +22,19 @@ pipeline {
         // ----------------------------------------------------
         // Stage 2: Create Docker Network
         // ----------------------------------------------------
-        stage('Prepare Docker Network') {
+        stage('Prepare Network') {
             steps {
-                echo 'Setting up Docker network for microservices communication...'
+                echo 'Creating shared Docker network...'
                 bat "docker network create ${NETWORK_NAME} || exit 0"
             }
         }
 
         // ----------------------------------------------------
-        // Stage 3: Build & Deploy Eureka Server
+        // Stage 3: Deploy Eureka Server
         // ----------------------------------------------------
         stage('Deploy Eureka Server') {
             steps {
-                echo 'Building and running Eureka Server container...'
+                echo 'Building and starting Eureka Server...'
                 dir('microservices/eureka-server') {
                     bat 'docker build -t eureka-server:latest .'
                 }
@@ -51,11 +51,11 @@ pipeline {
         }
 
         // ----------------------------------------------------
-        // Stage 4: Build & Deploy User Service
+        // Stage 4: Deploy User Service
         // ----------------------------------------------------
         stage('Deploy User Service') {
             steps {
-                echo 'Building and running User Service container...'
+                echo 'Building and starting User Service...'
                 dir('microservices/user-service') {
                     bat 'docker build -t user-service:latest .'
                 }
@@ -65,8 +65,10 @@ pipeline {
                     docker run -d ^
                     --name user-service ^
                     --network ${NETWORK_NAME} ^
-                    -p 8081:8080 ^
-                    -e SPRING_DATASOURCE_URL=jdbc:mysql://host.docker.internal:3306/bank_db?createDatabaseIfNotExist=true^&useSSL=false ^
+                    -p 8081:8081 ^
+                    -e SPRING_DATASOURCE_URL=jdbc:mysql://host.docker.internal:3306/user_service_db?createDatabaseIfNotExist=true^&useSSL=false ^
+                    -e SPRING_DATASOURCE_USERNAME=root ^
+                    -e SPRING_DATASOURCE_PASSWORD=root ^
                     -e EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/ ^
                     user-service:latest
                 """
@@ -77,13 +79,9 @@ pipeline {
     post {
         success {
             echo '====================================================='
-            echo ' Both Eureka and User-Service are live!              '
-            echo ' Eureka Dashboard: http://localhost:8761             '
-            echo ' User Service:     http://localhost:8081             '
+            echo ' Eureka Server: http://localhost:8761                '
+            echo ' User Service:  http://localhost:8081                '
             echo '====================================================='
-        }
-        failure {
-            echo 'Pipeline failed. Check previous stage error logs.'
         }
     }
 }
