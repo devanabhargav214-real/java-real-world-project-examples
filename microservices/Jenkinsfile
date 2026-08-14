@@ -2,45 +2,73 @@ pipeline {
     agent any
 
     environment {
-        // Docker CLI Path
         PATH = "C:\\Users\\user\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin;${env.PATH}"
-        SERVICE_NAME = 'user-service'
-        HOST_PORT = '8081'
-        CONTAINER_PORT = '8080'
+        NETWORK_NAME = 'banking-network'
     }
 
     stages {
-        // 1. Maven Build & Package
-        stage('Build with Maven') {
+        // ----------------------------------------------------
+        // Stage 1: Build All Microservices (Maven)
+        // ----------------------------------------------------
+        stage('Build Microservices') {
             steps {
-                echo 'Building multi-module project and user-service...'
+                echo 'Compiling and packaging Eureka Server and User Service...'
                 dir('microservices') {
                     bat 'mvn clean package -DskipTests'
                 }
             }
         }
 
-        // 2. Docker Image Build
-        stage('Docker Build') {
+        // ----------------------------------------------------
+        // Stage 2: Create Docker Network
+        // ----------------------------------------------------
+        stage('Prepare Docker Network') {
             steps {
-                echo 'Building Docker image for user-service...'
-                dir('microservices/user-service') {
-                    bat "docker build -t ${SERVICE_NAME}:latest ."
-                }
+                echo 'Setting up Docker network for microservices communication...'
+                bat "docker network create ${NETWORK_NAME} || exit 0"
             }
         }
 
-        // 3. Automatic Deployment (No Prompts/Pauses)
-        stage('Deploy Container') {
+        // ----------------------------------------------------
+        // Stage 3: Build & Deploy Eureka Server
+        // ----------------------------------------------------
+        stage('Deploy Eureka Server') {
             steps {
-                echo 'Stopping old container and deploying new container...'
-                bat "docker stop ${SERVICE_NAME} || exit 0"
-                bat "docker rm ${SERVICE_NAME} || exit 0"
+                echo 'Building and running Eureka Server container...'
+                dir('microservices/eureka-server') {
+                    bat 'docker build -t eureka-server:latest .'
+                }
+                bat 'docker stop eureka-server || exit 0'
+                bat 'docker rm eureka-server || exit 0'
                 bat """
-                    docker run -d -p ${HOST_PORT}:${CONTAINER_PORT} ^
+                    docker run -d ^
+                    --name eureka-server ^
+                    --network ${NETWORK_NAME} ^
+                    -p 8761:8761 ^
+                    eureka-server:latest
+                """
+            }
+        }
+
+        // ----------------------------------------------------
+        // Stage 4: Build & Deploy User Service
+        // ----------------------------------------------------
+        stage('Deploy User Service') {
+            steps {
+                echo 'Building and running User Service container...'
+                dir('microservices/user-service') {
+                    bat 'docker build -t user-service:latest .'
+                }
+                bat 'docker stop user-service || exit 0'
+                bat 'docker rm user-service || exit 0'
+                bat """
+                    docker run -d ^
+                    --name user-service ^
+                    --network ${NETWORK_NAME} ^
+                    -p 8081:8080 ^
                     -e SPRING_DATASOURCE_URL=jdbc:mysql://host.docker.internal:3306/bank_db?createDatabaseIfNotExist=true^&useSSL=false ^
-                    -e EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://host.docker.internal:8761/eureka/ ^
-                    --name ${SERVICE_NAME} ${SERVICE_NAME}:latest
+                    -e EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/ ^
+                    user-service:latest
                 """
             }
         }
@@ -49,12 +77,13 @@ pipeline {
     post {
         success {
             echo '====================================================='
-            echo ' Application deployed automatically & successfully!   '
-            echo ' Live at: http://localhost:8081                       '
+            echo ' Both Eureka and User-Service are live!              '
+            echo ' Eureka Dashboard: http://localhost:8761             '
+            echo ' User Service:     http://localhost:8081             '
             echo '====================================================='
         }
         failure {
-            echo 'Build failed. Check the console logs.'
+            echo 'Pipeline failed. Check previous stage error logs.'
         }
     }
 }
