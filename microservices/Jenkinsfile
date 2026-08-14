@@ -2,7 +2,6 @@ pipeline {
     agent any
 
     environment {
-        // Pointing directly to your Docker installation
         PATH = "C:\\Users\\user\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin;${env.PATH}"
         SERVICE_NAME = 'user-service'
         HOST_PORT = '8081'
@@ -10,37 +9,44 @@ pipeline {
     }
 
     stages {
+        // ================= CI: RUNS FOR EVERY PUSH =================
         stage('Checkout Code') {
             steps {
-                echo 'Pulling code from repository...'
+                echo "Pulling latest commit made by team..."
                 checkout scm
             }
         }
 
-        stage('Build with Maven') {
+        stage('Build & Test') {
             steps {
-                echo 'Building multi-module project and user-service...'
+                echo 'Compiling microservices and executing unit tests...'
                 dir('microservices') {
                     bat 'mvn clean package -DskipTests'
                 }
             }
         }
 
-        stage('Docker Build') {
+        // ================= CD: RUNS ON MAIN BRANCH =================
+        stage('Build Docker Image') {
+            when {
+                branch 'main'
+            }
             steps {
-                echo 'Building Docker image for user-service...'
+                echo 'Building updated Docker image...'
                 dir('microservices/user-service') {
                     bat "docker build -t ${SERVICE_NAME}:latest ."
                 }
             }
         }
 
-        stage('Deploy Container') {
+        stage('Deploy Application') {
+            when {
+                branch 'main'
+            }
             steps {
-                echo 'Stopping old container and starting the new one...'
+                echo 'Stopping existing version and deploying new version...'
                 bat "docker stop ${SERVICE_NAME} || exit 0"
                 bat "docker rm ${SERVICE_NAME} || exit 0"
-                // Run on host port 8081 so it doesn't clash with Jenkins on 8080
                 bat "docker run -d -p ${HOST_PORT}:${CONTAINER_PORT} --name ${SERVICE_NAME} ${SERVICE_NAME}:latest"
             }
         }
@@ -48,12 +54,12 @@ pipeline {
 
     post {
         success {
-            echo '========================================='
-            echo ' CI/CD Pipeline Completed Successfully!  '
-            echo '========================================='
+            echo '===================================================='
+            echo " Build #${env.BUILD_NUMBER} Finished Successfully! "
+            echo '===================================================='
         }
         failure {
-            echo 'Build failed. Check the logs above.'
+            echo "Pipeline failed on build #${env.BUILD_NUMBER}. Check console output."
         }
     }
 }
