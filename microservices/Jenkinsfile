@@ -9,7 +9,7 @@ pipeline {
     stages {
         stage('Build with Maven') {
             steps {
-                echo 'Building all microservices...'
+                echo 'Packaging Eureka Server and User Service...'
                 dir('microservices') {
                     bat 'mvn clean package -DskipTests'
                 }
@@ -51,7 +51,7 @@ pipeline {
         success {
             echo '====================================================='
             echo ' Eureka Dashboard: http://localhost:8761             '
-            echo ' User Service:     http://localhost:8081             '
+            echo ' User Service API: http://localhost:8081             '
             echo '====================================================='
         }
     }

@@ -6,8 +6,8 @@ spring:
     name: user-service
 
   datasource:
-    # Uses host.docker.internal so it connects directly to your Windows MySQL
-    url: jdbc:mysql://${DB_HOST:host.docker.internal}:3306/user_service_db?createDatabaseIfNotExist=true&useSSL=false
+    # Notice allowPublicKeyRetrieval=true added below
+    url: jdbc:mysql://${DB_HOST:host.docker.internal}:3306/user_service_db?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false
     username: root
     password: root
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -23,7 +23,6 @@ spring:
 eureka:
   client:
     service-url:
-      # Connects to eureka-server container on the Docker network
       defaultZone: http://${EUREKA_HOST:eureka-server}:8761/eureka/
     register-with-eureka: true
     fetch-registry: true
