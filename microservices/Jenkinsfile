@@ -5,7 +5,8 @@ pipeline {
         // Pointing directly to your Docker installation
         PATH = "C:\\Users\\user\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin;${env.PATH}"
         SERVICE_NAME = 'user-service'
-        PORT = '8080'
+        HOST_PORT = '8081'
+        CONTAINER_PORT = '8080'
     }
 
     stages {
@@ -39,7 +40,8 @@ pipeline {
                 echo 'Stopping old container and starting the new one...'
                 bat "docker stop ${SERVICE_NAME} || exit 0"
                 bat "docker rm ${SERVICE_NAME} || exit 0"
-                bat "docker run -d -p ${PORT}:8080 --name ${SERVICE_NAME} ${SERVICE_NAME}:latest"
+                // Run on host port 8081 so it doesn't clash with Jenkins on 8080
+                bat "docker run -d -p ${HOST_PORT}:${CONTAINER_PORT} --name ${SERVICE_NAME} ${SERVICE_NAME}:latest"
             }
         }
     }
