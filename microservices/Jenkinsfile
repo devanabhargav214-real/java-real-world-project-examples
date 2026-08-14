@@ -2,22 +2,23 @@ pipeline {
     agent any
 
     environment {
+        // Pointing directly to your Docker installation
+        PATH = "C:\\Users\\user\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin;${env.PATH}"
         SERVICE_NAME = 'user-service'
-        CONTAINER_PORT = '8080'
+        PORT = '8080'
     }
 
     stages {
         stage('Checkout Code') {
             steps {
-                echo 'Pulling code from GitHub repository...'
+                echo 'Pulling code from repository...'
                 checkout scm
             }
         }
 
-        stage('Build Parent & Modules') {
+        stage('Build with Maven') {
             steps {
-                echo 'Building and packaging user-service using Maven...'
-                // Navigate into the microservices folder and build
+                echo 'Building multi-module project and user-service...'
                 dir('microservices') {
                     bat 'mvn clean package -DskipTests'
                 }
@@ -33,22 +34,24 @@ pipeline {
             }
         }
 
-        stage('Docker Deploy') {
+        stage('Deploy Container') {
             steps {
-                echo 'Deploying user-service container...'
+                echo 'Stopping old container and starting the new one...'
                 bat "docker stop ${SERVICE_NAME} || exit 0"
                 bat "docker rm ${SERVICE_NAME} || exit 0"
-                bat "docker run -d -p ${CONTAINER_PORT}:8080 --name ${SERVICE_NAME} ${SERVICE_NAME}:latest"
+                bat "docker run -d -p ${PORT}:8080 --name ${SERVICE_NAME} ${SERVICE_NAME}:latest"
             }
         }
     }
 
     post {
         success {
-            echo 'User Service CI/CD Pipeline completed successfully!'
+            echo '========================================='
+            echo ' CI/CD Pipeline Completed Successfully!  '
+            echo '========================================='
         }
         failure {
-            echo 'Build failed. Check the console log for errors.'
+            echo 'Build failed. Check the logs above.'
         }
     }
 }
