@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        // Docker CLI Path for Windows
+        // Docker path on your system
         PATH = "C:\\Users\\user\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin;${env.PATH}"
         SERVICE_NAME = 'user-service'
         IMAGE_TAG = "user-service:${env.BUILD_NUMBER}"
@@ -10,97 +10,103 @@ pipeline {
 
     stages {
         // ==========================================
-        // 1. CI STAGE (BUILD & PACKAGE)
+        // 1. BUILD & PACKAGE (CI)
         // ==========================================
-        stage('CI - Build & Package') {
+        stage('Build with Maven') {
             steps {
-                echo 'Building Java microservices with Maven...'
+                echo 'Compiling and packaging all microservices...'
                 dir('microservices') {
                     bat 'mvn clean package -DskipTests'
                 }
             }
         }
 
-        stage('CI - Build Docker Image') {
+        stage('Docker Build Image') {
             steps {
-                echo "Packaging Docker image: ${IMAGE_TAG}"
+                echo "Building Docker image ${IMAGE_TAG}..."
                 dir('microservices/user-service') {
-                    // Tag image with both build number and latest
                     bat "docker build -t ${IMAGE_TAG} -t ${SERVICE_NAME}:latest ."
                 }
             }
         }
 
         // ==========================================
-        // 2. DEV ENVIRONMENT (AUTOMATIC)
+        // 2. DEV ENVIRONMENT (AUTO)
         // ==========================================
-        stage('Deploy to DEV') {
+        stage('Deploy to DEV (Port 8081)') {
             environment {
-                DEV_CONTAINER = 'user-service-dev'
+                DEV_APP = 'user-service-dev'
                 DEV_PORT = '8081'
             }
             steps {
-                echo 'Deploying to DEV environment (Port 8081)...'
-                bat "docker stop ${DEV_CONTAINER} || exit 0"
-                bat "docker rm ${DEV_CONTAINER} || exit 0"
-                bat "docker run -d -p ${DEV_PORT}:8080 -e SPRING_PROFILES_ACTIVE=dev --name ${DEV_CONTAINER} ${IMAGE_TAG}"
+                echo 'Starting DEV container...'
+                bat "docker stop ${DEV_APP} || exit 0"
+                bat "docker rm ${DEV_APP} || exit 0"
+                // Passes host.docker.internal so Spring Boot finds MySQL on your PC
+                bat """
+                    docker run -d -p ${DEV_PORT}:8080 ^
+                    -e SPRING_DATASOURCE_URL=jdbc:mysql://host.docker.internal:3306/bank_db?createDatabaseIfNotExist=true^&useSSL=false ^
+                    -e EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://host.docker.internal:8761/eureka/ ^
+                    --name ${DEV_APP} ${IMAGE_TAG}
+                """
             }
         }
 
         // ==========================================
-        // 3. STAGE ENVIRONMENT (AUTOMATIC)
+        // 3. STAGE ENVIRONMENT (AUTO)
         // ==========================================
-        stage('Deploy to STAGE') {
+        stage('Deploy to STAGE (Port 8082)') {
             environment {
-                STAGE_CONTAINER = 'user-service-stage'
+                STAGE_APP = 'user-service-stage'
                 STAGE_PORT = '8082'
             }
             steps {
-                echo 'Deploying to STAGE / QA environment (Port 8082)...'
-                bat "docker stop ${STAGE_CONTAINER} || exit 0"
-                bat "docker rm ${STAGE_CONTAINER} || exit 0"
-                bat "docker run -d -p ${STAGE_PORT}:8080 -e SPRING_PROFILES_ACTIVE=stage --name ${STAGE_CONTAINER} ${IMAGE_TAG}"
+                echo 'Starting STAGE container...'
+                bat "docker stop ${STAGE_APP} || exit 0"
+                bat "docker rm ${STAGE_APP} || exit 0"
+                bat """
+                    docker run -d -p ${STAGE_PORT}:8080 ^
+                    -e SPRING_DATASOURCE_URL=jdbc:mysql://host.docker.internal:3306/bank_db?createDatabaseIfNotExist=true^&useSSL=false ^
+                    -e EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://host.docker.internal:8761/eureka/ ^
+                    --name ${STAGE_APP} ${IMAGE_TAG}
+                """
             }
         }
 
         // ==========================================
-        // 4. MANUAL APPROVAL GATE FOR PROD
+        // 4. MANUAL APPROVAL GATE
         // ==========================================
         stage('Approve for Production') {
             steps {
-                // Pauses the pipeline and waits for user confirmation in Jenkins UI
-                input message: 'Promote this build from STAGE to PRODUCTION?', ok: 'Deploy to Production'
+                input message: 'Do you want to deploy this build to PRODUCTION?', ok: 'Deploy to Production'
             }
         }
 
         // ==========================================
-        // 5. PROD ENVIRONMENT (CONTROLLED)
+        // 5. PROD ENVIRONMENT (LIVE)
         // ==========================================
-        stage('Deploy to PROD') {
+        stage('Deploy to PROD (Port 8083)') {
             environment {
-                PROD_CONTAINER = 'user-service-prod'
+                PROD_APP = 'user-service-prod'
                 PROD_PORT = '8083'
             }
             steps {
-                echo 'Deploying to PRODUCTION environment (Port 8083)...'
-                bat "docker stop ${PROD_CONTAINER} || exit 0"
-                bat "docker rm ${PROD_CONTAINER} || exit 0"
-                bat "docker run -d -p ${PROD_PORT}:8080 -e SPRING_PROFILES_ACTIVE=prod --name ${PROD_CONTAINER} ${IMAGE_TAG}"
+                echo 'Starting PRODUCTION container...'
+                bat "docker stop ${PROD_APP} || exit 0"
+                bat "docker rm ${PROD_APP} || exit 0"
+                bat """
+                    docker run -d -p ${PROD_PORT}:8080 ^
+                    -e SPRING_DATASOURCE_URL=jdbc:mysql://host.docker.internal:3306/bank_db?createDatabaseIfNotExist=true^&useSSL=false ^
+                    -e EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://host.docker.internal:8761/eureka/ ^
+                    --name ${PROD_APP} ${IMAGE_TAG}
+                """
             }
         }
     }
 
     post {
         success {
-            echo '====================================================='
-            echo " Build #${env.BUILD_NUMBER} deployed successfully across all stages! "
-            echo '====================================================='
-        }
-        aborted {
-            echo 'Production deployment was rejected or aborted.'
-        }
-        failure {
-            echo 'Pipeline failed. Check previous stage error logs.'
+            echo 'All environments deployed successfully!'
         }
     }
 }
