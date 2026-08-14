@@ -1,0 +1,54 @@
+pipeline {
+    agent any
+
+    environment {
+        SERVICE_NAME = 'user-service'
+        CONTAINER_PORT = '8080'
+    }
+
+    stages {
+        stage('Checkout Code') {
+            steps {
+                echo 'Pulling code from GitHub repository...'
+                checkout scm
+            }
+        }
+
+        stage('Build Parent & Modules') {
+            steps {
+                echo 'Building and packaging user-service using Maven...'
+                // Navigate into the microservices folder and build
+                dir('microservices') {
+                    bat 'mvn clean package -DskipTests'
+                }
+            }
+        }
+
+        stage('Docker Build') {
+            steps {
+                echo 'Building Docker image for user-service...'
+                dir('microservices/user-service') {
+                    bat "docker build -t ${SERVICE_NAME}:latest ."
+                }
+            }
+        }
+
+        stage('Docker Deploy') {
+            steps {
+                echo 'Deploying user-service container...'
+                bat "docker stop ${SERVICE_NAME} || exit 0"
+                bat "docker rm ${SERVICE_NAME} || exit 0"
+                bat "docker run -d -p ${CONTAINER_PORT}:8080 --name ${SERVICE_NAME} ${SERVICE_NAME}:latest"
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'User Service CI/CD Pipeline completed successfully!'
+        }
+        failure {
+            echo 'Build failed. Check the console log for errors.'
+        }
+    }
+}
