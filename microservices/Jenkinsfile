@@ -2,64 +2,105 @@ pipeline {
     agent any
 
     environment {
+        // Docker CLI Path for Windows
         PATH = "C:\\Users\\user\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin;${env.PATH}"
         SERVICE_NAME = 'user-service'
-        HOST_PORT = '8081'
-        CONTAINER_PORT = '8080'
+        IMAGE_TAG = "user-service:${env.BUILD_NUMBER}"
     }
 
     stages {
-        // ================= CI: RUNS FOR EVERY PUSH =================
-        stage('Checkout Code') {
+        // ==========================================
+        // 1. CI STAGE (BUILD & PACKAGE)
+        // ==========================================
+        stage('CI - Build & Package') {
             steps {
-                echo "Pulling latest commit made by team..."
-                checkout scm
-            }
-        }
-
-        stage('Build & Test') {
-            steps {
-                echo 'Compiling microservices and executing unit tests...'
+                echo 'Building Java microservices with Maven...'
                 dir('microservices') {
                     bat 'mvn clean package -DskipTests'
                 }
             }
         }
 
-        // ================= CD: RUNS ON MAIN BRANCH =================
-        stage('Build Docker Image') {
-            when {
-                branch 'main'
-            }
+        stage('CI - Build Docker Image') {
             steps {
-                echo 'Building updated Docker image...'
+                echo "Packaging Docker image: ${IMAGE_TAG}"
                 dir('microservices/user-service') {
-                    bat "docker build -t ${SERVICE_NAME}:latest ."
+                    // Tag image with both build number and latest
+                    bat "docker build -t ${IMAGE_TAG} -t ${SERVICE_NAME}:latest ."
                 }
             }
         }
 
-        stage('Deploy Application') {
-            when {
-                branch 'main'
+        // ==========================================
+        // 2. DEV ENVIRONMENT (AUTOMATIC)
+        // ==========================================
+        stage('Deploy to DEV') {
+            environment {
+                DEV_CONTAINER = 'user-service-dev'
+                DEV_PORT = '8081'
             }
             steps {
-                echo 'Stopping existing version and deploying new version...'
-                bat "docker stop ${SERVICE_NAME} || exit 0"
-                bat "docker rm ${SERVICE_NAME} || exit 0"
-                bat "docker run -d -p ${HOST_PORT}:${CONTAINER_PORT} --name ${SERVICE_NAME} ${SERVICE_NAME}:latest"
+                echo 'Deploying to DEV environment (Port 8081)...'
+                bat "docker stop ${DEV_CONTAINER} || exit 0"
+                bat "docker rm ${DEV_CONTAINER} || exit 0"
+                bat "docker run -d -p ${DEV_PORT}:8080 -e SPRING_PROFILES_ACTIVE=dev --name ${DEV_CONTAINER} ${IMAGE_TAG}"
+            }
+        }
+
+        // ==========================================
+        // 3. STAGE ENVIRONMENT (AUTOMATIC)
+        // ==========================================
+        stage('Deploy to STAGE') {
+            environment {
+                STAGE_CONTAINER = 'user-service-stage'
+                STAGE_PORT = '8082'
+            }
+            steps {
+                echo 'Deploying to STAGE / QA environment (Port 8082)...'
+                bat "docker stop ${STAGE_CONTAINER} || exit 0"
+                bat "docker rm ${STAGE_CONTAINER} || exit 0"
+                bat "docker run -d -p ${STAGE_PORT}:8080 -e SPRING_PROFILES_ACTIVE=stage --name ${STAGE_CONTAINER} ${IMAGE_TAG}"
+            }
+        }
+
+        // ==========================================
+        // 4. MANUAL APPROVAL GATE FOR PROD
+        // ==========================================
+        stage('Approve for Production') {
+            steps {
+                // Pauses the pipeline and waits for user confirmation in Jenkins UI
+                input message: 'Promote this build from STAGE to PRODUCTION?', ok: 'Deploy to Production'
+            }
+        }
+
+        // ==========================================
+        // 5. PROD ENVIRONMENT (CONTROLLED)
+        // ==========================================
+        stage('Deploy to PROD') {
+            environment {
+                PROD_CONTAINER = 'user-service-prod'
+                PROD_PORT = '8083'
+            }
+            steps {
+                echo 'Deploying to PRODUCTION environment (Port 8083)...'
+                bat "docker stop ${PROD_CONTAINER} || exit 0"
+                bat "docker rm ${PROD_CONTAINER} || exit 0"
+                bat "docker run -d -p ${PROD_PORT}:8080 -e SPRING_PROFILES_ACTIVE=prod --name ${PROD_CONTAINER} ${IMAGE_TAG}"
             }
         }
     }
 
     post {
         success {
-            echo '===================================================='
-            echo " Build #${env.BUILD_NUMBER} Finished Successfully! "
-            echo '===================================================='
+            echo '====================================================='
+            echo " Build #${env.BUILD_NUMBER} deployed successfully across all stages! "
+            echo '====================================================='
+        }
+        aborted {
+            echo 'Production deployment was rejected or aborted.'
         }
         failure {
-            echo "Pipeline failed on build #${env.BUILD_NUMBER}. Check console output."
+            echo 'Pipeline failed. Check previous stage error logs.'
         }
     }
 }
