@@ -3,6 +3,8 @@ pipeline {
 
     environment {
         DOCKER_NETWORK = 'banking-network'
+        // Updated path based on your 'where docker' output
+        PATH = "C:\\Users\\user\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin;${env.PATH}"
     }
 
     stages {
@@ -15,9 +17,8 @@ pipeline {
 
         stage('Build with Maven') {
             steps {
-                echo 'Packaging reactor modules (Config Server, Eureka Server, User Service, Category Service)...'
+                echo 'Packaging reactor modules (Config, Eureka, User, Category)...'
                 dir('microservices') {
-                    // Compiles all modules defined in microservices/pom.xml
                     bat 'mvn clean package -DskipTests'
                 }
             }
@@ -26,7 +27,6 @@ pipeline {
         stage('Prepare Docker Network') {
             steps {
                 echo 'Ensuring Docker network exists...'
-                // Creates banking-network if it does not already exist
                 bat 'docker network create %DOCKER_NETWORK% || exit 0'
             }
         }
@@ -73,10 +73,10 @@ pipeline {
             echo 'Jenkins pipeline execution completed.'
         }
         success {
-            echo 'SUCCESS: All microservices (Eureka, User Service, Category Service) built and deployed!'
+            echo 'SUCCESS: All microservices built and deployed to Docker!'
         }
         failure {
-            echo 'FAILURE: Pipeline encountered errors. Please check stage logs above.'
+            echo 'FAILURE: Pipeline encountered errors.'
         }
     }
 }
