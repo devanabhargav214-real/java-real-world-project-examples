@@ -19,8 +19,8 @@ public class UserController {
         this.userService = userService;
     }
 
+    // Public registration
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<User> createUser(@RequestBody User user) {
 
         User createdUser = userService.createUser(user);
@@ -28,13 +28,15 @@ public class UserController {
         return new ResponseEntity<>(createdUser, HttpStatus.CREATED);
     }
 
+    // USER + ADMIN
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN','USER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public ResponseEntity<List<User>> getAllUsers() {
 
         return ResponseEntity.ok(userService.getAllUsers());
     }
 
+    // USER + ADMIN
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<User> getUserById(@PathVariable Long id) {
@@ -42,6 +44,7 @@ public class UserController {
         return ResponseEntity.ok(userService.getUserById(id));
     }
 
+    // USER + ADMIN
     @GetMapping("/email/{email}")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<User> getUserByEmail(
@@ -50,6 +53,7 @@ public class UserController {
         return ResponseEntity.ok(userService.getUserByEmail(email));
     }
 
+    // ADMIN only
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> deleteUser(@PathVariable Long id) {
