@@ -1,15 +1,13 @@
 package com.microservices.userservice.controller;
 
-import com.microservices.userservice.dto.UserResponse;
 import com.microservices.userservice.entity.User;
 import com.microservices.userservice.service.UserService;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/users")
@@ -22,63 +20,47 @@ public class UserController {
     }
 
     @PostMapping
-    public ResponseEntity<UserResponse> createUser(
-            @RequestBody User user) {
+    @PreAuthorize("hasRole('ADMIN')")
+    public User createUser(User user) {
 
-        User createdUser = userService.createUser(user);
+        // Always create new users as USER
+        user.setRole("USER");
 
-        return new ResponseEntity<>(
-                convertToResponse(createdUser),
-                HttpStatus.CREATED
+        // Encrypt password before saving
+        user.setPassword(
+                passwordEncoder.encode(user.getPassword())
         );
+
+        return userRepository.save(user);
     }
-
     @GetMapping
-    public ResponseEntity<List<UserResponse>> getAllUsers() {
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<User>> getAllUsers() {
 
-        List<UserResponse> users = userService.getAllUsers()
-                .stream()
-                .map(this::convertToResponse)
-                .collect(Collectors.toList());
-
-        return ResponseEntity.ok(users);
+        return ResponseEntity.ok(userService.getAllUsers());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<UserResponse> getUserById(
-            @PathVariable Long id) {
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    public ResponseEntity<User> getUserById(@PathVariable Long id) {
 
-        User user = userService.getUserById(id);
-
-        return ResponseEntity.ok(convertToResponse(user));
+        return ResponseEntity.ok(userService.getUserById(id));
     }
 
     @GetMapping("/email/{email}")
-    public ResponseEntity<UserResponse> getUserByEmail(
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    public ResponseEntity<User> getUserByEmail(
             @PathVariable String email) {
 
-        User user = userService.getUserByEmail(email);
-
-        return ResponseEntity.ok(convertToResponse(user));
+        return ResponseEntity.ok(userService.getUserByEmail(email));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<String> deleteUser(
-            @PathVariable Long id) {
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<String> deleteUser(@PathVariable Long id) {
 
         userService.deleteUser(id);
 
         return ResponseEntity.ok("User deleted successfully");
-    }
-
-    private UserResponse convertToResponse(User user) {
-
-        return new UserResponse(
-                user.getId(),
-                user.getName(),
-                user.getEmail(),
-                user.getRole(),
-                user.getCreatedAt()
-        );
     }
 }
