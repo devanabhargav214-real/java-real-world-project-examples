@@ -21,18 +21,13 @@ public class UserController {
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public User createUser(User user) {
+    public ResponseEntity<User> createUser(@RequestBody User user) {
 
-        // Always create new users as USER
-        user.setRole("USER");
+        User createdUser = userService.createUser(user);
 
-        // Encrypt password before saving
-        user.setPassword(
-                passwordEncoder.encode(user.getPassword())
-        );
-
-        return userRepository.save(user);
+        return new ResponseEntity<>(createdUser, HttpStatus.CREATED);
     }
+
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<User>> getAllUsers() {
