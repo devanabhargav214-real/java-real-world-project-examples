@@ -13,10 +13,10 @@
         <version>1.0.0</version>
     </parent>
 
-    <artifactId>user-service</artifactId>
+    <artifactId>category-service</artifactId>
 
-    <name>user-service</name>
-    <description>User Management Microservice</description>
+    <name>category-service</name>
+    <description>Category Management Microservice</description>
 
     <dependencies>
         <!-- Spring Security -->
