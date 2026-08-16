@@ -1,7 +1,9 @@
 package com.microservices.categoryservice.config;
 
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -45,9 +47,17 @@ public class SecurityConfig {
                         ).permitAll()
 
                         // Category APIs
-                        .requestMatchers(
-                                "/api/categories/**"
-                        ).hasAnyRole("USER", "ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/categories/**")
+                        .hasAnyRole("USER", "ADMIN")
+
+                        .requestMatchers(HttpMethod.POST, "/api/categories/**")
+                        .hasRole("ADMIN")
+
+                        .requestMatchers(HttpMethod.PUT, "/api/categories/**")
+                        .hasRole("ADMIN")
+
+                        .requestMatchers(HttpMethod.DELETE, "/api/categories/**")
+                        .hasRole("ADMIN")
 
                         // Everything else requires authentication
                         .anyRequest().authenticated()
