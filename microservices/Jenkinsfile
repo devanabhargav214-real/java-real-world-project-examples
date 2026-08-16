@@ -3,7 +3,6 @@ pipeline {
 
     environment {
         DOCKER_NETWORK = 'banking-network'
-        // Updated path based on your 'where docker' output
         PATH = "C:\\Users\\user\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin;${env.PATH}"
     }
 
@@ -17,7 +16,7 @@ pipeline {
 
         stage('Build with Maven') {
             steps {
-                echo 'Packaging reactor modules (Config, Eureka, User, Category)...'
+                echo 'Packaging reactor modules (Config, Eureka, User, Category, Product)...'
                 dir('microservices') {
                     bat 'mvn clean package -DskipTests'
                 }
@@ -33,7 +32,7 @@ pipeline {
 
         stage('Deploy Eureka Server') {
             steps {
-                echo 'Building and starting Eureka Server container...'
+                echo 'Building and starting Eureka Server...'
                 dir('microservices/eureka-server') {
                     bat 'docker build -t eureka-server:latest .'
                     bat 'docker stop eureka-server || exit 0'
@@ -45,7 +44,7 @@ pipeline {
 
         stage('Deploy User Service') {
             steps {
-                echo 'Building and starting User Service container...'
+                echo 'Building and starting User Service...'
                 dir('microservices/user-service') {
                     bat 'docker build -t user-service:latest .'
                     bat 'docker stop user-service || exit 0'
@@ -57,12 +56,24 @@ pipeline {
 
         stage('Deploy Category Service') {
             steps {
-                echo 'Building and starting Category Service container...'
+                echo 'Building and starting Category Service...'
                 dir('microservices/category-service') {
                     bat 'docker build -t category-service:latest .'
                     bat 'docker stop category-service || exit 0'
                     bat 'docker rm category-service || exit 0'
                     bat 'docker run -d --name category-service --net %DOCKER_NETWORK% -p 8082:8082 category-service:latest'
+                }
+            }
+        }
+
+        stage('Deploy Product Service') {
+            steps {
+                echo 'Building and starting Product Service...'
+                dir('microservices/product-service') {
+                    bat 'docker build -t product-service:latest .'
+                    bat 'docker stop product-service || exit 0'
+                    bat 'docker rm product-service || exit 0'
+                    bat 'docker run -d --name product-service --net %DOCKER_NETWORK% -p 8083:8083 product-service:latest'
                 }
             }
         }
