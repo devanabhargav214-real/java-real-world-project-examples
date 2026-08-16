@@ -49,6 +49,8 @@
         <module>eureka-server</module>
         <module>user-service</module>
         <module>category-service</module>
+        <module>product-service</module>
+
     </modules>
 
 </project>
