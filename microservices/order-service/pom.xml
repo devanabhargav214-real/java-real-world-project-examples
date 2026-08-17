@@ -13,9 +13,9 @@
         <version>1.0.0</version>
     </parent>
 
-    <artifactId>product-service</artifactId>
+    <artifactId>order-service</artifactId>
 
-    <name>product-service</name>
+    <name>order-service</name>
     <description>User Management Microservice</description>
 
     <dependencies>
