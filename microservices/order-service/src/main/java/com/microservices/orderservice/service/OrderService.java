@@ -1,5 +1,7 @@
 package com.microservices.orderservice.service;
 
+import com.microservices.orderservice.client.ProductClient;
+import com.microservices.orderservice.dto.ProductResponse;
 import com.microservices.orderservice.entity.Order;
 import com.microservices.orderservice.entity.OrderItem;
 import com.microservices.orderservice.repository.OrderRepository;
@@ -12,9 +14,14 @@ import java.util.List;
 public class OrderService {
 
     private final OrderRepository orderRepository;
+    private final ProductClient productClient;
 
-    public OrderService(OrderRepository orderRepository) {
+    public OrderService(
+            OrderRepository orderRepository,
+            ProductClient productClient) {
+
         this.orderRepository = orderRepository;
+        this.productClient = productClient;
     }
 
     // Create order
@@ -22,7 +29,26 @@ public class OrderService {
     public Order createOrder(Order order) {
 
         if (order.getItems() != null) {
+
             for (OrderItem item : order.getItems()) {
+
+                // Check product using Product Service
+                ProductResponse product =
+                        productClient.getProductById(
+                                item.getProductId()
+                        );
+
+                if (product == null) {
+                    throw new RuntimeException(
+                            "Product not found: "
+                                    + item.getProductId()
+                    );
+                }
+
+                // Use current product price
+                item.setPrice(product.getPrice());
+
+                // Connect item to order
                 item.setOrder(order);
             }
         }
@@ -46,7 +72,9 @@ public class OrderService {
     }
 
     // Get orders by user email
-    public List<Order> getOrdersByUserEmail(String userEmail) {
+    public List<Order> getOrdersByUserEmail(
+            String userEmail) {
+
         return orderRepository.findByUserEmail(userEmail);
     }
 
