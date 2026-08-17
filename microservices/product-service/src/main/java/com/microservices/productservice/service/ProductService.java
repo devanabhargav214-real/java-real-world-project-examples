@@ -1,5 +1,7 @@
 package com.microservices.productservice.service;
 
+import com.microservices.productservice.client.CategoryClient;
+import com.microservices.productservice.dto.CategoryResponse;
 import com.microservices.productservice.entity.Product;
 import com.microservices.productservice.repository.ProductRepository;
 import org.springframework.stereotype.Service;
@@ -8,15 +10,27 @@ import java.util.List;
 
 @Service
 public class ProductService {
-
+    private final CategoryClient categoryClient;
     private final ProductRepository productRepository;
 
-    public ProductService(ProductRepository productRepository) {
+    public ProductService(CategoryClient categoryClient, ProductRepository productRepository) {
+        this.categoryClient = categoryClient;
         this.productRepository = productRepository;
     }
 
     // Create product
     public Product createProduct(Product product) {
+        CategoryResponse category =
+                categoryClient.getCategoryById(
+                        product.getCategoryId()
+                );
+
+        if (category == null) {
+            throw new RuntimeException(
+                    "Category not found: "
+                            + product.getCategoryId()
+            );
+        }
         return productRepository.save(product);
     }
 
