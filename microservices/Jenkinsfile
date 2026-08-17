@@ -16,7 +16,7 @@ pipeline {
 
         stage('Build with Maven') {
             steps {
-                echo 'Packaging reactor modules (Config, Eureka, User, Category, Product)...'
+                echo 'Packaging reactor modules (Config, Eureka, User, Category, Product, Order)...'
                 dir('microservices') {
                     bat 'mvn clean package -DskipTests'
                 }
@@ -74,6 +74,18 @@ pipeline {
                     bat 'docker stop product-service || exit 0'
                     bat 'docker rm product-service || exit 0'
                     bat 'docker run -d --name product-service --net %DOCKER_NETWORK% -p 8083:8083 product-service:latest'
+                }
+            }
+        }
+
+        stage('Deploy Order Service') {
+            steps {
+                echo 'Building and starting Order Service...'
+                dir('microservices/order-service') {
+                    bat 'docker build -t order-service:latest .'
+                    bat 'docker stop order-service || exit 0'
+                    bat 'docker rm order-service || exit 0'
+                    bat 'docker run -d --name order-service --net %DOCKER_NETWORK% -p 8084:8084 order-service:latest'
                 }
             }
         }

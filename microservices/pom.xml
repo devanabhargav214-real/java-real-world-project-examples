@@ -50,6 +50,7 @@
         <module>user-service</module>
         <module>category-service</module>
         <module>product-service</module>
+        <module>order-service</module>
 
     </modules>
 
