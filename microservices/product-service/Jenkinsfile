@@ -1,0 +1,26 @@
+pipeline {
+    agent any
+    environment {
+        DOCKER_NETWORK = 'banking-network'
+        PATH = "C:\\Users\\user\\AppData\\Local\\Programs\\DockerDesktop\\resources\\bin;${env.PATH}"
+    }
+    stages {
+        stage('Checkout') { steps { checkout scm } }
+        stage('Build') {
+            steps {
+                dir('microservices') { bat 'mvn clean package -DskipTests -pl product-service -am' }
+            }
+        }
+        stage('Deploy Container') {
+            steps {
+                dir('microservices/product-service') {
+                    bat 'docker network create %DOCKER_NETWORK% || exit 0'
+                    bat 'docker build -t product-service:latest .'
+                    bat 'docker stop product-service || exit 0'
+                    bat 'docker rm product-service || exit 0'
+                    bat 'docker run -d --name product-service --net %DOCKER_NETWORK% -p 8083:8083 product-service:latest'
+                }
+            }
+        }
+    }
+}
