@@ -1,7 +1,9 @@
 package com.microservices.orderservice.service;
 
 import com.microservices.orderservice.client.ProductClient;
+import com.microservices.orderservice.client.UserClient;
 import com.microservices.orderservice.dto.ProductResponse;
+import com.microservices.orderservice.dto.UserResponse;
 import com.microservices.orderservice.entity.Order;
 import com.microservices.orderservice.entity.OrderItem;
 import com.microservices.orderservice.repository.OrderRepository;
@@ -15,46 +17,64 @@ public class OrderService {
 
     private final OrderRepository orderRepository;
     private final ProductClient productClient;
+    private final UserClient userClient;
 
     public OrderService(
             OrderRepository orderRepository,
-            ProductClient productClient) {
+            ProductClient productClient,
+            UserClient userClient) {
 
         this.orderRepository = orderRepository;
         this.productClient = productClient;
+        this.userClient = userClient;
     }
 
     // Create order
     @Transactional
     public Order createOrder(Order order) {
 
-        if (order.getItems() != null) {
 
-            for (OrderItem item : order.getItems()) {
 
-                // Check product using Product Service
-                ProductResponse product =
-                        productClient.getProductById(
-                                item.getProductId()
-                        );
-
-                if (product == null) {
-                    throw new RuntimeException(
-                            "Product not found: "
-                                    + item.getProductId()
+            // Verify user through User Service
+            UserResponse user =
+                    userClient.getUserByEmail(
+                            order.getUserEmail()
                     );
-                }
 
-                // Use current product price
-                item.setPrice(product.getPrice());
-
-                // Connect item to order
-                item.setOrder(order);
+            if (user == null) {
+                throw new RuntimeException(
+                        "User not found: "
+                                + order.getUserEmail()
+                );
             }
-        }
 
-        return orderRepository.save(order);
-    }
+            if (order.getItems() != null) {
+
+                for (OrderItem item : order.getItems()) {
+
+                    // Verify product through Product Service
+                    ProductResponse product =
+                            productClient.getProductById(
+                                    item.getProductId()
+                            );
+
+                    if (product == null) {
+                        throw new RuntimeException(
+                                "Product not found: "
+                                        + item.getProductId()
+                        );
+                    }
+
+                    // Get actual product price
+                    item.setPrice(product.getPrice());
+
+                    // Connect item to order
+                    item.setOrder(order);
+                }
+            }
+
+            return orderRepository.save(order);
+        }
 
     // Get all orders
     public List<Order> getAllOrders() {
